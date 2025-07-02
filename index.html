@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TICAD9 Youth Initiatives - Photo Call</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>TICAD9 Youth Initiatives</h1>
+            <p>Create your personalized photo memory</p>
+        </header>
+
+        <main class="main-content">
+            <div class="photo-editor">
+                <div class="canvas-container">
+                    <canvas id="photoCanvas" width="800" height="600"></canvas>
+                    <div class="preview-overlay" id="previewOverlay">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📷</div>
+                            <p>Click to add your photo</p>
+                            <p class="upload-hint">or drag and drop your image here</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <div class="input-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" id="firstName" placeholder="Your first name">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" id="lastName" placeholder="Your last name">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="country">Country</label>
+                        <input type="text" id="country" placeholder="Your country">
+                    </div>
+
+                    <div class="button-group">
+                        <button id="uploadBtn" class="btn btn-primary">
+                            📁 Choose Photo
+                        </button>
+                        <button id="downloadBtn" class="btn btn-success" disabled>
+                            💾 Download
+                        </button>
+                        <button id="shareBtn" class="btn btn-secondary" disabled>
+                            📱 Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <div class="instructions-header">
+                    <h3>How to use:</h3>
+                    <button class="help-toggle" id="helpToggle">
+                        <span class="help-icon">❓</span>
+                    </button>
+                </div>
+                <div class="instructions-content" id="instructionsContent">
+                    <ol>
+                        <li>Add your photo by clicking "Choose Photo"</li>
+                        <li>Enter your first name, last name and country</li>
+                        <li>Download your personalized image</li>
+                        <li>Share on social media!</li>
+                    </ol>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 TICAD9 Youth Initiatives - Co-creating the Future We Want</p>
+        </footer>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    
+    <script src="script.js"></script>
+</body>
+</html>
+
