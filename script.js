@@ -355,43 +355,36 @@ class PhotoCallApp {
         const firstName = this.firstNameInput.value.trim();
         const lastName = this.lastNameInput.value.trim();
         const country = this.countryInput.value.trim();
-
-        if (!firstName && !lastName && !country) {
-            console.log('No text to draw');
-            return;
-        }
-
-        console.log('Drawing text - Name:', firstName, lastName, 'Country:', country);
-
-        // Configuration du texte
-        this.ctx.fillStyle = '#000000';
+    
+        if (!firstName && !lastName && !country) return;
+    
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'top';
-
-        // Position du texte (zone en bas du cadre)
+    
         const textArea = {
             x: 105,
             y: 555,
             width: 290,
             lineHeight: 25
         };
-
-        // Nom complet
+    
+        // Nom complet en ORANGE
         if (firstName || lastName) {
+            this.ctx.fillStyle = '#be8e25'; // Orange vif
             this.ctx.font = 'bold 20px Inter, Arial, sans-serif';
             const fullName = `${firstName} ${lastName}`.trim().toUpperCase();
             this.ctx.fillText(fullName, textArea.x, textArea.y);
-            console.log('Drew name:', fullName);
         }
-
-        // Pays
+    
+        // Pays en NOIR
         if (country) {
+            this.ctx.fillStyle = '#000000'; // Noir
             this.ctx.font = '18px Inter, Arial, sans-serif';
             const countryY = textArea.y + (firstName || lastName ? textArea.lineHeight : 0);
             this.ctx.fillText(country.toUpperCase(), textArea.x, countryY);
-            console.log('Drew country:', country);
         }
     }
+    
 
     downloadImage() {
         console.log('Downloading image');
