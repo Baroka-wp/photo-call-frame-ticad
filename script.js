@@ -109,8 +109,9 @@ class PhotoCallApp {
         this.shareBtn.addEventListener('click', () => this.shareImage());
         
         // Redessiner le canvas quand le texte change
-        [this.firstNameInput, this.lastNameInput, this.countryInput].forEach(input => {
-            input.addEventListener('input', () => {
+        [this.firstNameInput, this.lastNameInput, document.getElementById('country')].forEach(input => {
+            const eventType = input.tagName.toLowerCase() === 'select' ? 'change' : 'input';
+            input.addEventListener(eventType, () => {
                 console.log('Text input changed, redrawing canvas');
                 this.drawCanvas();
             });
