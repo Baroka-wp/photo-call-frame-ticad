@@ -55,17 +55,26 @@ class PhotoCallApp {
         fetch('./countries.json')
             .then(response => response.json())
             .then(data => {
-                this.countries = Object.entries(data).reduce((acc, [code, name]) => {
-                    acc[name.toLowerCase()] = code;
-                    return acc;
-                }, {});
+                const countrySelect = document.getElementById('country');
+                this.countries = data;
+                for (const code in data) {
+                    const option = document.createElement('option');
+                    option.value = code;
+                    option.textContent = data[code];
+                    countrySelect.appendChild(option);
+                }
                 console.log('Country list loaded successfully');
             })
             .catch(error => console.error('Failed to load country list:', error));
     }
 
     getCountryCode(countryName) {
-        return this.countries[countryName.toLowerCase()];
+        for (const code in this.countries) {
+            if (this.countries[code] === countryName) {
+                return code;
+            }
+        }
+        return null;
     }
 
     createBasicFrame() {
@@ -374,7 +383,8 @@ class PhotoCallApp {
     drawText() {
         const firstName = this.firstNameInput.value.trim();
         const lastName = this.lastNameInput.value.trim();
-        const country = this.countryInput.value.trim();
+        const countrySelect = document.getElementById('country');
+        const country = countrySelect.options[countrySelect.selectedIndex].text;
     
         if (!firstName && !lastName && !country) return;
     
