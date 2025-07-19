@@ -5,9 +5,12 @@ class PhotoCallApp {
         this.frameImage = new Image();
         this.userImage = null;
         this.isFrameLoaded = false;
+        this.countries = {};
+        this.flagCache = {};
         
         this.initializeElements();
         this.loadFrame();
+        this.loadCountries();
         this.setupEventListeners();
         this.setupDragAndDrop();
         this.setupMobileHelp();
@@ -46,6 +49,23 @@ class PhotoCallApp {
         
         this.frameImage.crossOrigin = 'anonymous';
         this.frameImage.src = './frame.png';
+    }
+
+    loadCountries() {
+        fetch('./countries.json')
+            .then(response => response.json())
+            .then(data => {
+                this.countries = Object.entries(data).reduce((acc, [code, name]) => {
+                    acc[name.toLowerCase()] = code;
+                    return acc;
+                }, {});
+                console.log('Country list loaded successfully');
+            })
+            .catch(error => console.error('Failed to load country list:', error));
+    }
+
+    getCountryCode(countryName) {
+        return this.countries[countryName.toLowerCase()];
     }
 
     createBasicFrame() {
@@ -365,7 +385,8 @@ class PhotoCallApp {
             x: 105,
             y: 555,
             width: 290,
-            lineHeight: 25
+            lineHeight: 25,
+            flagSize: 20
         };
     
         // Nom complet en ORANGE
@@ -378,10 +399,30 @@ class PhotoCallApp {
     
         // Pays en NOIR
         if (country) {
-            this.ctx.fillStyle = '#000000'; // Noir
-            this.ctx.font = '18px Inter, Arial, sans-serif';
             const countryY = textArea.y + (firstName || lastName ? textArea.lineHeight : 0);
-            this.ctx.fillText(country.toUpperCase(), textArea.x, countryY);
+            const countryCode = this.getCountryCode(country);
+
+            if (countryCode) {
+                if (this.flagCache[countryCode]) {
+                    const flag = this.flagCache[countryCode];
+                    this.ctx.drawImage(flag, textArea.x, countryY, textArea.flagSize, textArea.flagSize * 0.75);
+                    this.ctx.fillStyle = '#000000';
+                    this.ctx.font = '18px Inter, Arial, sans-serif';
+                    this.ctx.fillText(country.toUpperCase(), textArea.x + textArea.flagSize + 5, countryY);
+                } else {
+                    const flag = new Image();
+                    flag.crossOrigin = 'anonymous';
+                    flag.onload = () => {
+                        this.flagCache[countryCode] = flag;
+                        this.drawCanvas();
+                    };
+                    flag.src = `https://cdn.jsdelivr.net/npm/country-flags-svg@1.1.10/flags/4x3/${countryCode}.svg`;
+                }
+            } else {
+                this.ctx.fillStyle = '#000000';
+                this.ctx.font = '18px Inter, Arial, sans-serif';
+                this.ctx.fillText(country.toUpperCase(), textArea.x, countryY);
+            }
         }
     }
     
