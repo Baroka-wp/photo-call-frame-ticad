@@ -54,4 +54,4 @@ also works in most browsers.
 
 ## Hashtags
 
-`#TICADYouthDrive2026` `#TICAD9` `#AfricaJapan` `#TheFutureWeWant`
+`#TICADYouthDrive2026` `#AfricaJapanYouth`

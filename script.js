@@ -15,9 +15,14 @@
         orange: '#ce843c'
     };
 
-    var SHARE_TEXT =
-        'I am attending TICAD Youth Drive 2026 — Accra, Ghana, August 13-14. ' +
-        '#TICADYouthDrive2026 #TICAD9 #AfricaJapan #TheFutureWeWant';
+    // The asterisks are intentional: they render as bold on WhatsApp.
+    var SHARE_TEXT = [
+        '*At Mensvic Grand Hotel, Accra | Aug 13–14, 2026*',
+        '',
+        "I am attending! 300 African & Japanese youth turning 'Youth Agenda 2055' from vision to action.",
+        'This is Bigger than a drive! it is a movement!',
+        '#TICADYouthDrive2026 #AfricaJapanYouth'
+    ].join('\n');
 
     function PhotoFrameApp() {
         this.canvas = document.getElementById('photoCanvas');
