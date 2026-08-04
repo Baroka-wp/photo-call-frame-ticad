@@ -12,7 +12,19 @@
         photo: { x: 166, y: 275, w: 420, h: 454, r: 24 },
         name: { x: 172, baseline: 783, size: 51, maxWidth: 440 },
         country: { x: 172, baseline: 868, size: 60, maxWidth: 440 },
+        flag: { w: 59, h: 44, gap: 14 },
         orange: '#ce843c'
+    };
+
+    /* The dropdown keeps the full official name; the frame uses these shorter
+     * forms so the longest names don't have to shrink to an unreadable size
+     * next to the flag. */
+    var SHORT_NAMES = {
+        VC: 'Saint Vincent & Grenadines',
+        CD: 'DR Congo',
+        CF: 'Central African Rep.',
+        BA: 'Bosnia & Herzegovina',
+        ST: 'Sao Tome & Principe'
     };
 
     // The asterisks are intentional: they render as bold on WhatsApp.
@@ -31,6 +43,9 @@
         this.frameImage = new Image();
         this.frameReady = false;
         this.userImage = null;
+
+        // code -> Image (ready) | null (loading) | false (unavailable)
+        this.flagCache = {};
 
         // Photo transform, in photo-window units.
         this.zoom = 1;
@@ -337,11 +352,43 @@
         this.drawText();
     };
 
+    /* Flags are read as text and turned into a data URL rather than pointed at
+     * directly with an <img src>. A same-origin file:// image taints the canvas
+     * in Chrome, which would break toDataURL and therefore the download; a data
+     * URL never taints. If the fetch fails (file:// has no fetch either), the
+     * country line simply renders without a flag. */
+    PhotoFrameApp.prototype.getFlag = function (code) {
+        if (!code) return null;
+        var key = code.toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(this.flagCache, key)) {
+            return this.flagCache[key] || null;
+        }
+
+        var self = this;
+        this.flagCache[key] = null;
+
+        fetch('./flags/' + key + '.svg')
+            .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+            .then(function (svg) {
+                return new Promise(function (resolve, reject) {
+                    var img = new Image();
+                    img.onload = function () { resolve(img); };
+                    img.onerror = reject;
+                    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+                });
+            })
+            .then(function (img) { self.flagCache[key] = img; self.draw(); })
+            .catch(function () { self.flagCache[key] = false; self.draw(); });
+
+        return null;
+    };
+
     PhotoFrameApp.prototype.fitFont = function (text, spec, weight, style) {
         var ctx = this.ctx;
         var size = spec.size;
+        var min = spec.min || 26;
         var family = "'Montserrat', system-ui, Arial, sans-serif";
-        while (size > 26) {
+        while (size > min) {
             ctx.font = style + ' ' + weight + ' ' + size + "px " + family;
             if (ctx.measureText(text).width <= spec.maxWidth) break;
             size -= 1;
@@ -352,8 +399,10 @@
     PhotoFrameApp.prototype.drawText = function () {
         var ctx = this.ctx;
         var name = (this.nameInput.value || '').trim().toUpperCase();
-        var country = this.countrySelect.value
-            ? this.countrySelect.options[this.countrySelect.selectedIndex].textContent.toUpperCase()
+        var code = this.countrySelect.value;
+        var country = code
+            ? (SHORT_NAMES[code] ||
+                this.countrySelect.options[this.countrySelect.selectedIndex].textContent).toUpperCase()
             : '';
 
         ctx.textAlign = 'left';
@@ -366,8 +415,27 @@
         }
 
         if (country) {
-            this.fitFont(country, FRAME.country, 300, 'italic');
-            ctx.fillText(country, FRAME.country.x, FRAME.country.baseline);
+            var spec = FRAME.country;
+            var textX = spec.x;
+            var maxWidth = spec.maxWidth;
+            var flag = this.getFlag(code);
+
+            if (flag) {
+                var f = FRAME.flag;
+                var flagY = spec.baseline - f.h;
+                ctx.drawImage(flag, spec.x, flagY, f.w, f.h);
+                // Keeps pale flags (Japan, Nigeria) readable on the green frame.
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(spec.x + 0.75, flagY + 0.75, f.w - 1.5, f.h - 1.5);
+                ctx.fillStyle = FRAME.orange;
+
+                textX += f.w + f.gap;
+                maxWidth -= f.w + f.gap;
+            }
+
+            this.fitFont(country, { size: spec.size, maxWidth: maxWidth }, 300, 'italic');
+            ctx.fillText(country, textX, spec.baseline);
         }
     };
 
