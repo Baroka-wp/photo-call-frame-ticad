@@ -1,283 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TICAD9 Youth Initiatives - Photo Call</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#4E6338">
+    <title>TICAD Youth Drive 2026 — Photo Frame</title>
+    <meta name="description"
+        content="Create your personalized 'I am attending TICAD Youth Drive 2026' photo. August 13-14, 2026, Mensvic Grand Hotel, Accra, Ghana.">
+
+    <meta property="og:title" content="TICAD Youth Drive 2026 — Photo Frame">
+    <meta property="og:description" content="I am attending TICAD Youth Drive 2026 — Accra, Ghana, August 13-14, 2026.">
+    <meta property="og:type" content="website">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
-    <div class="container">
-        <header class="header">
-            <h1>TICAD9 Youth Initiatives</h1>
-            <p>Create your personalized photo memory</p>
-        </header>
+    <header class="site-header">
+        <div class="wrap header-inner">
+            <div class="brand">
+                <span class="brand-mark">TICAD</span><span class="brand-rest">YOUTH DRIVE 2026</span>
+            </div>
+            <p class="event-meta">August 13&ndash;14, 2026 &middot; Mensvic Grand Hotel, Accra, Ghana</p>
+        </div>
+    </header>
 
-        <main class="main-content">
-            <div class="photo-editor">
-                <div class="canvas-container">
-                    <canvas id="photoCanvas" width="800" height="600"></canvas>
-                    <div class="preview-overlay" id="previewOverlay">
-                        <div class="upload-area" id="uploadArea">
-                            <div class="upload-icon">📷</div>
-                            <p>Click to add your photo</p>
-                            <p class="upload-hint">or drag and drop your image here</p>
-                        </div>
-                    </div>
-                </div>
+    <main class="wrap main">
+        <h1 class="page-title">I am attending</h1>
+        <p class="page-sub">Add your photo, your name and your country, then download and share.</p>
 
-                <div class="controls">
-                    <div class="input-group">
-                        <label for="firstName">First Name</label>
-                        <input type="text" id="firstName" placeholder="Your first name">
-                    </div>
-                    
-                    <div class="input-group">
-                        <label for="lastName">Last Name</label>
-                        <input type="text" id="lastName" placeholder="Your last name">
-                    </div>
-
-                    <div class="input-group">
-                        <label for="country">Country</label>
-                        <select id="country">
-                            <option value="">Select your country</option>
-                            <option value="AF">Afghanistan</option>
-                            <option value="AL">Albania</option>
-                            <option value="DZ">Algeria</option>
-                            <option value="AD">Andorra</option>
-                            <option value="AO">Angola</option>
-                            <option value="AG">Antigua and Barbuda</option>
-                            <option value="AR">Argentina</option>
-                            <option value="AM">Armenia</option>
-                            <option value="AU">Australia</option>
-                            <option value="AT">Austria</option>
-                            <option value="AZ">Azerbaijan</option>
-                            <option value="BS">Bahamas</option>
-                            <option value="BH">Bahrain</option>
-                            <option value="BD">Bangladesh</option>
-                            <option value="BB">Barbados</option>
-                            <option value="BY">Belarus</option>
-                            <option value="BE">Belgium</option>
-                            <option value="BZ">Belize</option>
-                            <option value="BJ">Benin</option>
-                            <option value="BT">Bhutan</option>
-                            <option value="BO">Bolivia</option>
-                            <option value="BA">Bosnia and Herzegovina</option>
-                            <option value="BW">Botswana</option>
-                            <option value="BR">Brazil</option>
-                            <option value="BN">Brunei</option>
-                            <option value="BG">Bulgaria</option>
-                            <option value="BF">Burkina Faso</option>
-                            <option value="BI">Burundi</option>
-                            <option value="KH">Cambodia</option>
-                            <option value="CM">Cameroon</option>
-                            <option value="CA">Canada</option>
-                            <option value="CV">Cape Verde</option>
-                            <option value="CF">Central African Republic</option>
-                            <option value="TD">Chad</option>
-                            <option value="CL">Chile</option>
-                            <option value="CN">China</option>
-                            <option value="CO">Colombia</option>
-                            <option value="KM">Comoros</option>
-                            <option value="CG">Congo</option>
-                            <option value="CD">Democratic Republic of Congo</option>
-                            <option value="CR">Costa Rica</option>
-                            <option value="CI">Cote d'Ivoire</option>
-                            <option value="HR">Croatia</option>
-                            <option value="CU">Cuba</option>
-                            <option value="CY">Cyprus</option>
-                            <option value="CZ">Czech Republic</option>
-                            <option value="DK">Denmark</option>
-                            <option value="DJ">Djibouti</option>
-                            <option value="DM">Dominica</option>
-                            <option value="DO">Dominican Republic</option>
-                            <option value="TL">East Timor</option>
-                            <option value="EC">Ecuador</option>
-                            <option value="EG">Egypt</option>
-                            <option value="SV">El Salvador</option>
-                            <option value="GQ">Equatorial Guinea</option>
-                            <option value="ER">Eritrea</option>
-                            <option value="EE">Estonia</option>
-                            <option value="SZ">Eswatini</option>
-                            <option value="ET">Ethiopia</option>
-                            <option value="FJ">Fiji</option>
-                            <option value="FI">Finland</option>
-                            <option value="FR">France</option>
-                            <option value="GA">Gabon</option>
-                            <option value="GM">Gambia</option>
-                            <option value="GE">Georgia</option>
-                            <option value="DE">Germany</option>
-                            <option value="GH">Ghana</option>
-                            <option value="GR">Greece</option>
-                            <option value="GD">Grenada</option>
-                            <option value="GT">Guatemala</option>
-                            <option value="GN">Guinea</option>
-                            <option value="GW">Guinea-Bissau</option>
-                            <option value="GY">Guyana</option>
-                            <option value="HT">Haiti</option>
-                            <option value="HN">Honduras</option>
-                            <option value="HU">Hungary</option>
-                            <option value="IS">Iceland</option>
-                            <option value="IN">India</option>
-                            <option value="ID">Indonesia</option>
-                            <option value="IR">Iran</option>
-                            <option value="IQ">Iraq</option>
-                            <option value="IE">Ireland</option>
-                            <option value="IL">Israel</option>
-                            <option value="IT">Italy</option>
-                            <option value="JM">Jamaica</option>
-                            <option value="JP">Japan</option>
-                            <option value="JO">Jordan</option>
-                            <option value="KZ">Kazakhstan</option>
-                            <option value="KE">Kenya</option>
-                            <option value="KI">Kiribati</option>
-                            <option value="KW">Kuwait</option>
-                            <option value="KG">Kyrgyzstan</option>
-                            <option value="LA">Laos</option>
-                            <option value="LV">Latvia</option>
-                            <option value="LB">Lebanon</option>
-                            <option value="LS">Lesotho</option>
-                            <option value="LR">Liberia</option>
-                            <option value="LY">Libya</option>
-                            <option value="LI">Liechtenstein</option>
-                            <option value="LT">Lithuania</option>
-                            <option value="LU">Luxembourg</option>
-                            <option value="MG">Madagascar</option>
-                            <option value="MW">Malawi</option>
-                            <option value="MY">Malaysia</option>
-                            <option value="MV">Maldives</option>
-                            <option value="ML">Mali</option>
-                            <option value="MT">Malta</option>
-                            <option value="MH">Marshall Islands</option>
-                            <option value="MR">Mauritania</option>
-                            <option value="MU">Mauritius</option>
-                            <option value="MX">Mexico</option>
-                            <option value="FM">Micronesia</option>
-                            <option value="MD">Moldova</option>
-                            <option value="MC">Monaco</option>
-                            <option value="MN">Mongolia</option>
-                            <option value="ME">Montenegro</option>
-                            <option value="MA">Morocco</option>
-                            <option value="MZ">Mozambique</option>
-                            <option value="MM">Myanmar</option>
-                            <option value="NA">Namibia</option>
-                            <option value="NR">Nauru</option>
-                            <option value="NP">Nepal</option>
-                            <option value="NL">Netherlands</option>
-                            <option value="NZ">New Zealand</option>
-                            <option value="NI">Nicaragua</option>
-                            <option value="NE">Niger</option>
-                            <option value="NG">Nigeria</option>
-                            <option value="KP">North Korea</option>
-                            <option value="NO">Norway</option>
-                            <option value="OM">Oman</option>
-                            <option value="PK">Pakistan</option>
-                            <option value="PW">Palau</option>
-                            <option value="PA">Panama</option>
-                            <option value="PG">Papua New Guinea</option>
-                            <option value="PY">Paraguay</option>
-                            <option value="PE">Peru</option>
-                            <option value="PH">Philippines</option>
-                            <option value="PL">Poland</option>
-                            <option value="PT">Portugal</option>
-                            <option value="QA">Qatar</option>
-                            <option value="RO">Romania</option>
-                            <option value="RU">Russia</option>
-                            <option value="RW">Rwanda</option>
-                            <option value="KN">Saint Kitts and Nevis</option>
-                            <option value="LC">Saint Lucia</option>
-                            <option value="VC">Saint Vincent and the Grenadines</option>
-                            <option value="WS">Samoa</option>
-                            <option value="SM">San Marino</option>
-                            <option value="ST">Sao Tome and Principe</option>
-                            <option value="SA">Saudi Arabia</option>
-                            <option value="SN">Senegal</option>
-                            <option value="RS">Serbia</option>
-                            <option value="SC">Seychelles</option>
-                            <option value="SL">Sierra Leone</option>
-                            <option value="SG">Singapore</option>
-                            <option value="SK">Slovakia</option>
-                            <option value="SI">Slovenia</option>
-                            <option value="SB">Solomon Islands</option>
-                            <option value="SO">Somalia</option>
-                            <option value="ZA">South Africa</option>
-                            <option value="KR">South Korea</option>
-                            <option value="SS">South Sudan</option>
-                            <option value="ES">Spain</option>
-                            <option value="LK">Sri Lanka</option>
-                            <option value="SD">Sudan</option>
-                            <option value="SR">Suriname</option>
-                            <option value="SE">Sweden</option>
-                            <option value="CH">Switzerland</option>
-                            <option value="SY">Syria</option>
-                            <option value="TJ">Tajikistan</option>
-                            <option value="TZ">Tanzania</option>
-                            <option value="TH">Thailand</option>
-                            <option value="TG">Togo</option>
-                            <option value="TO">Tonga</option>
-                            <option value="TT">Trinidad and Tobago</option>
-                            <option value="TN">Tunisia</option>
-                            <option value="TR">Turkey</option>
-                            <option value="TM">Turkmenistan</option>
-                            <option value="TV">Tuvalu</option>
-                            <option value="UG">Uganda</option>
-                            <option value="UA">Ukraine</option>
-                            <option value="AE">United Arab Emirates</option>
-                            <option value="GB">United Kingdom</option>
-                            <option value="US">United States</option>
-                            <option value="UY">Uruguay</option>
-                            <option value="UZ">Uzbekistan</option>
-                            <option value="VU">Vanuatu</option>
-                            <option value="VA">Vatican City</option>
-                            <option value="VE">Venezuela</option>
-                            <option value="VN">Vietnam</option>
-                            <option value="YE">Yemen</option>
-                            <option value="ZM">Zambia</option>
-                            <option value="ZW">Zimbabwe</option>
-                        </select>
-                    </div>
-
-                    <div class="button-group">
-                        <button id="uploadBtn" class="btn btn-primary">
-                            📁 Choose Photo
-                        </button>
-                        <button id="downloadBtn" class="btn btn-success" disabled>
-                            💾 Download
-                        </button>
-                        <button id="shareBtn" class="btn btn-secondary" disabled>
-                            📱 Share
-                        </button>
-                    </div>
-                </div>
+        <section class="stage" aria-label="Photo preview">
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="photoCanvas" width="1274" height="1068" aria-label="Your personalized frame"></canvas>
+                <button type="button" class="drop-hint" id="dropHint">
+                    <span class="drop-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7h3l2-2h8l2 2h3v12H3z" />
+                            <circle cx="12" cy="13" r="3.5" />
+                        </svg>
+                    </span>
+                    <span class="drop-text">Tap to add your photo</span>
+                    <span class="drop-sub">or drag an image here</span>
+                </button>
             </div>
 
-            <div class="instructions">
-                <div class="instructions-header">
-                    <h3>How to use:</h3>
-                    <button class="help-toggle" id="helpToggle">
-                        <span class="help-icon">❓</span>
-                    </button>
-                </div>
-                <div class="instructions-content" id="instructionsContent">
-                    <ol>
-                        <li>Add your photo by clicking "Choose Photo"</li>
-                        <li>Enter your first name, last name and country</li>
-                        <li>Download your personalized image</li>
-                        <li>Share on social media!</li>
-                    </ol>
-                </div>
+            <div class="zoom-row" id="zoomRow" hidden>
+                <label for="zoom">Zoom</label>
+                <input type="range" id="zoom" min="1" max="3" step="0.01" value="1">
+                <button type="button" class="link-btn" id="resetPhoto">Reset</button>
             </div>
-        </main>
+            <p class="drag-tip" id="dragTip" hidden>Drag the photo inside the frame to reposition it.</p>
+        </section>
 
-        <footer class="footer">
-            <p>&copy; 2025 TICAD9 Youth Initiatives - Co-creating the Future We Want</p>
-        </footer>
-    </div>
+        <section class="controls" aria-label="Your details">
+            <div class="field">
+                <label for="fullName">Full name</label>
+                <input type="text" id="fullName" placeholder="e.g. Ama Mensah" autocomplete="name" maxlength="40"
+                    enterkeyhint="done">
+            </div>
 
-    <input type="file" id="fileInput" accept="image/*" style="display: none;">
-    
+            <div class="field">
+                <label for="country">Country</label>
+                <select id="country">
+                    <option value="">Select your country</option>
+                </select>
+            </div>
+
+            <div class="actions">
+                <button type="button" class="btn btn-outline" id="uploadBtn">Choose photo</button>
+                <button type="button" class="btn btn-primary" id="downloadBtn" disabled>Download</button>
+                <button type="button" class="btn btn-ghost" id="shareBtn" disabled>Share</button>
+            </div>
+
+            <p class="hashtags">#TICADYouthDrive2026 &middot; #TICAD9 &middot; #AfricaJapan &middot; #TheFutureWeWant</p>
+        </section>
+
+        <details class="help">
+            <summary>How it works</summary>
+            <ol>
+                <li>Tap the frame or <em>Choose photo</em> to add your picture.</li>
+                <li>Drag inside the frame and use the zoom slider to adjust it.</li>
+                <li>Type your name and pick your country.</li>
+                <li>Download the image and share it on social media.</li>
+            </ol>
+        </details>
+    </main>
+
+    <footer class="site-footer">
+        <div class="wrap">
+            <p>TICAD Youth Drive 2026 &middot; Accra, Ghana</p>
+            <p class="archive-link"><a href="./2025/">View the 2025 edition &rarr;</a></p>
+        </div>
+    </footer>
+
+    <input type="file" id="fileInput" accept="image/*" hidden>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="countries.js"></script>
     <script src="script.js"></script>
 </body>
-</html>
 
+</html>

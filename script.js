@@ -1,612 +1,436 @@
-class PhotoCallApp {
-    constructor() {
+/* TICAD Youth Drive 2026 — Photo Frame
+ * Mobile-first canvas composer: photo window + name + country.
+ */
+
+(function () {
+    'use strict';
+
+    // Geometry measured on frame.png (1274 x 1068).
+    var FRAME = {
+        width: 1274,
+        height: 1068,
+        photo: { x: 166, y: 275, w: 420, h: 454, r: 24 },
+        name: { x: 172, baseline: 783, size: 51, maxWidth: 440 },
+        country: { x: 172, baseline: 868, size: 60, maxWidth: 440 },
+        orange: '#ce843c'
+    };
+
+    var SHARE_TEXT =
+        'I am attending TICAD Youth Drive 2026 — Accra, Ghana, August 13-14. ' +
+        '#TICADYouthDrive2026 #TICAD9 #AfricaJapan #TheFutureWeWant';
+
+    function PhotoFrameApp() {
         this.canvas = document.getElementById('photoCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.frameImage = new Image();
-        this.userImage = null;
-        this.isFrameLoaded = false;
-        this.countries = {};
 
-        this.initializeElements();
+        this.frameImage = new Image();
+        this.frameReady = false;
+        this.userImage = null;
+
+        // Photo transform, in photo-window units.
+        this.zoom = 1;
+        this.offsetX = 0;
+        this.offsetY = 0;
+
+        this.cacheElements();
+        this.buildCountryList();
+        this.bindEvents();
         this.loadFrame();
-        this.loadCountries();
-        this.setupEventListeners();
-        this.setupDragAndDrop();
-        this.setupMobileHelp();
     }
 
-    initializeElements() {
+    PhotoFrameApp.prototype.cacheElements = function () {
+        this.container = document.getElementById('canvasContainer');
+        this.dropHint = document.getElementById('dropHint');
         this.fileInput = document.getElementById('fileInput');
         this.uploadBtn = document.getElementById('uploadBtn');
         this.downloadBtn = document.getElementById('downloadBtn');
         this.shareBtn = document.getElementById('shareBtn');
-        this.previewOverlay = document.getElementById('previewOverlay');
-        this.uploadArea = document.getElementById('uploadArea');
-        this.canvasContainer = document.querySelector('.canvas-container');
+        this.nameInput = document.getElementById('fullName');
+        this.countrySelect = document.getElementById('country');
+        this.zoomRow = document.getElementById('zoomRow');
+        this.zoomInput = document.getElementById('zoom');
+        this.resetBtn = document.getElementById('resetPhoto');
+        this.dragTip = document.getElementById('dragTip');
+        this.toast = document.getElementById('toast');
+    };
 
-        this.firstNameInput = document.getElementById('firstName');
-        this.lastNameInput = document.getElementById('lastName');
-        this.countryInput = document.getElementById('country');
-    }
+    PhotoFrameApp.prototype.buildCountryList = function () {
+        if (typeof COUNTRIES === 'undefined') return;
+        var frag = document.createDocumentFragment();
+        for (var i = 0; i < COUNTRIES.length; i++) {
+            var opt = document.createElement('option');
+            opt.value = COUNTRIES[i][0];
+            opt.textContent = COUNTRIES[i][1];
+            frag.appendChild(opt);
+        }
+        this.countrySelect.appendChild(frag);
+    };
 
-    loadFrame() {
-        this.frameImage.onload = () => {
-            console.log('Frame image loaded successfully');
-            console.log('Frame dimensions:', this.frameImage.naturalWidth, 'x', this.frameImage.naturalHeight);
-            this.isFrameLoaded = true;
-            this.canvas.width = this.frameImage.naturalWidth;
-            this.canvas.height = this.frameImage.naturalHeight;
-            this.resizeCanvas();
-            this.drawCanvas();
+    PhotoFrameApp.prototype.loadFrame = function () {
+        var self = this;
+
+        this.frameImage.onload = function () {
+            self.frameReady = true;
+            self.canvas.width = self.frameImage.naturalWidth || FRAME.width;
+            self.canvas.height = self.frameImage.naturalHeight || FRAME.height;
+            self.draw();
         };
 
-        this.frameImage.onerror = (error) => {
-            console.error('Failed to load frame image:', error);
-            // Créer un cadre de base si l'image ne se charge pas
-            this.createBasicFrame();
+        this.frameImage.onerror = function () {
+            self.frameReady = true;
+            self.showToast('Frame image could not be loaded.');
+            self.draw();
         };
 
         this.frameImage.crossOrigin = 'anonymous';
         this.frameImage.src = './frame.png';
-    }
 
-    loadCountries() {
-        // Charger les pays directement depuis les options du HTML
-        const countrySelect = document.getElementById('country');
-        this.countries = {};
+        // Redraw once the webfont is ready so the canvas text matches the design.
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(function () { self.draw(); });
+        }
+    };
 
+    /* ---------- events ---------- */
 
-        // Parcourir toutes les options du select pour créer le mapping
-        for (let i = 1; i < countrySelect.options.length; i++) {
-            const option = countrySelect.options[i];
-            this.countries[option.value] = option.textContent;
+    PhotoFrameApp.prototype.bindEvents = function () {
+        var self = this;
+
+        this.uploadBtn.addEventListener('click', function () { self.fileInput.click(); });
+        this.dropHint.addEventListener('click', function () { self.fileInput.click(); });
+        this.fileInput.addEventListener('change', function (e) {
+            if (e.target.files && e.target.files[0]) self.handleFile(e.target.files[0]);
+            e.target.value = '';
+        });
+
+        this.nameInput.addEventListener('input', function () { self.draw(); });
+        this.countrySelect.addEventListener('change', function () { self.draw(); });
+
+        this.downloadBtn.addEventListener('click', function () { self.download(); });
+        this.shareBtn.addEventListener('click', function () { self.share(); });
+
+        this.zoomInput.addEventListener('input', function () {
+            self.zoom = parseFloat(self.zoomInput.value);
+            self.clampOffsets();
+            self.draw();
+        });
+
+        this.resetBtn.addEventListener('click', function () {
+            self.zoom = 1;
+            self.offsetX = 0;
+            self.offsetY = 0;
+            self.zoomInput.value = '1';
+            self.draw();
+        });
+
+        this.bindDragAndDrop();
+        this.bindPhotoGestures();
+    };
+
+    PhotoFrameApp.prototype.bindDragAndDrop = function () {
+        var self = this;
+        var stop = function (e) { e.preventDefault(); e.stopPropagation(); };
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (name) {
+            self.container.addEventListener(name, stop, false);
+        });
+        ['dragenter', 'dragover'].forEach(function (name) {
+            self.container.addEventListener(name, function () {
+                self.container.classList.add('drag-over');
+            }, false);
+        });
+        ['dragleave', 'drop'].forEach(function (name) {
+            self.container.addEventListener(name, function () {
+                self.container.classList.remove('drag-over');
+            }, false);
+        });
+
+        this.container.addEventListener('drop', function (e) {
+            var files = e.dataTransfer && e.dataTransfer.files;
+            if (files && files.length) self.handleFile(files[0]);
+        }, false);
+    };
+
+    // Drag to reposition (mouse + touch), pinch to zoom.
+    PhotoFrameApp.prototype.bindPhotoGestures = function () {
+        var self = this;
+        var pointers = {};
+        var last = null;
+        var pinchStart = null;
+
+        function scaleFactor() {
+            var rect = self.canvas.getBoundingClientRect();
+            return rect.width ? self.canvas.width / rect.width : 1;
         }
 
-        console.log(`Country list loaded from HTML with ${Object.keys(this.countries).length} countries`);
-    }
+        function distance(pts) {
+            var keys = Object.keys(pts);
+            var a = pts[keys[0]], b = pts[keys[1]];
+            return Math.hypot(a.x - b.x, a.y - b.y);
+        }
 
-    getCountryCode(countryName) {
-        for (const code in this.countries) {
-            if (this.countries[code] === countryName) {
-                return code;
+        this.canvas.addEventListener('pointerdown', function (e) {
+            if (!self.userImage) return;
+            self.canvas.setPointerCapture(e.pointerId);
+            pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+            var count = Object.keys(pointers).length;
+            if (count === 1) {
+                last = { x: e.clientX, y: e.clientY };
+            } else if (count === 2) {
+                pinchStart = { dist: distance(pointers), zoom: self.zoom };
             }
-        }
-        return null;
-    }
-
-    getCountryFlag(countryName) {
-        // Mapping complet de tous les pays vers leurs emojis de drapeaux
-        const countryFlags = {
-            'Afghanistan': '🇦🇫', 'Albania': '🇦🇱', 'Algeria': '🇩🇿', 'Andorra': '🇦🇩', 'Angola': '🇦🇴',
-            'Antigua and Barbuda': '🇦🇬', 'Argentina': '🇦🇷', 'Armenia': '🇦🇲', 'Australia': '🇦🇺', 'Austria': '🇦🇹',
-            'Azerbaijan': '🇦🇿', 'Bahamas': '🇧🇸', 'Bahrain': '🇧🇭', 'Bangladesh': '🇧🇩', 'Barbados': '🇧🇧',
-            'Belarus': '🇧🇾', 'Belgium': '🇧🇪', 'Belize': '🇧🇿', 'Benin': '🇧🇯', 'Bhutan': '🇧🇹',
-            'Bolivia': '🇧🇴', 'Bosnia and Herzegovina': '🇧🇦', 'Botswana': '🇧🇼', 'Brazil': '🇧🇷', 'Brunei': '🇧🇳',
-            'Bulgaria': '🇧🇬', 'Burkina Faso': '🇧🇫', 'Burundi': '🇧🇮', 'Cambodia': '🇰🇭', 'Cameroon': '🇨🇲',
-            'Canada': '🇨🇦', 'Cape Verde': '🇨🇻', 'Central African Republic': '🇨🇫', 'Chad': '🇹🇩', 'Chile': '🇨🇱',
-            'China': '🇨🇳', 'Colombia': '🇨🇴', 'Comoros': '🇰🇲', 'Congo': '🇨🇬', 'Democratic Republic of Congo': '🇨🇩',
-            'Costa Rica': '🇨🇷', 'Cote d\'Ivoire': '🇨🇮', 'Croatia': '🇭🇷', 'Cuba': '🇨🇺', 'Cyprus': '🇨🇾',
-            'Czech Republic': '🇨🇿', 'Denmark': '🇩🇰', 'Djibouti': '🇩🇯', 'Dominica': '🇩🇲', 'Dominican Republic': '🇩🇴',
-            'East Timor': '🇹🇱', 'Ecuador': '🇪🇨', 'Egypt': '🇪🇬', 'El Salvador': '🇸🇻', 'Equatorial Guinea': '🇬🇶',
-            'Eritrea': '🇪🇷', 'Estonia': '🇪🇪', 'Eswatini': '🇸🇿', 'Ethiopia': '🇪🇹', 'Fiji': '🇫🇯',
-            'Finland': '🇫🇮', 'France': '🇫🇷', 'Gabon': '🇬🇦', 'Gambia': '🇬🇲', 'Georgia': '🇬🇪',
-            'Germany': '🇩🇪', 'Ghana': '🇬🇭', 'Greece': '🇬🇷', 'Grenada': '🇬🇩', 'Guatemala': '🇬🇹',
-            'Guinea': '🇬🇳', 'Guinea-Bissau': '🇬🇼', 'Guyana': '🇬🇾', 'Haiti': '🇭🇹', 'Honduras': '🇭🇳',
-            'Hungary': '🇭🇺', 'Iceland': '🇮🇸', 'India': '🇮🇳', 'Indonesia': '🇮🇩', 'Iran': '🇮🇷',
-            'Iraq': '🇮🇶', 'Ireland': '🇮🇪', 'Israel': '🇮🇱', 'Italy': '🇮🇹', 'Jamaica': '🇯🇲',
-            'Japan': '🇯🇵', 'Jordan': '🇯🇴', 'Kazakhstan': '🇰🇿', 'Kenya': '🇰🇪', 'Kiribati': '🇰🇮',
-            'Kuwait': '🇰🇼', 'Kyrgyzstan': '🇰🇬', 'Laos': '🇱🇦', 'Latvia': '🇱🇻', 'Lebanon': '🇱🇧',
-            'Lesotho': '🇱🇸', 'Liberia': '🇱🇷', 'Libya': '🇱🇾', 'Liechtenstein': '🇱🇮', 'Lithuania': '🇱🇹',
-            'Luxembourg': '🇱🇺', 'Madagascar': '🇲🇬', 'Malawi': '🇲🇼', 'Malaysia': '🇲🇾', 'Maldives': '🇲🇻',
-            'Mali': '🇲🇱', 'Malta': '🇲🇹', 'Marshall Islands': '🇲🇭', 'Mauritania': '🇲🇷', 'Mauritius': '🇲🇺',
-            'Mexico': '🇲🇽', 'Micronesia': '🇫🇲', 'Moldova': '🇲🇩', 'Monaco': '🇲🇨', 'Mongolia': '🇲🇳',
-            'Montenegro': '🇲🇪', 'Morocco': '🇲🇦', 'Mozambique': '🇲🇿', 'Myanmar': '🇲🇲', 'Namibia': '🇳🇦',
-            'Nauru': '🇳🇷', 'Nepal': '🇳🇵', 'Netherlands': '🇳🇱', 'New Zealand': '🇳🇿', 'Nicaragua': '🇳🇮',
-            'Niger': '🇳🇪', 'Nigeria': '🇳🇬', 'North Korea': '🇰🇵', 'Norway': '🇳🇴', 'Oman': '🇴🇲',
-            'Pakistan': '🇵🇰', 'Palau': '🇵🇼', 'Panama': '🇵🇦', 'Papua New Guinea': '🇵🇬', 'Paraguay': '🇵🇾',
-            'Peru': '🇵🇪', 'Philippines': '🇵🇭', 'Poland': '🇵🇱', 'Portugal': '🇵🇹', 'Qatar': '🇶🇦',
-            'Romania': '🇷🇴', 'Russia': '🇷🇺', 'Rwanda': '🇷🇼', 'Saint Kitts and Nevis': '🇰🇳', 'Saint Lucia': '🇱🇨',
-            'Saint Vincent and the Grenadines': '🇻🇨', 'Samoa': '🇼🇸', 'San Marino': '🇸🇲', 'Sao Tome and Principe': '🇸🇹',
-            'Saudi Arabia': '🇸🇦', 'Senegal': '🇸🇳', 'Serbia': '🇷🇸', 'Seychelles': '🇸🇨', 'Sierra Leone': '🇸🇱',
-            'Singapore': '🇸🇬', 'Slovakia': '🇸🇰', 'Slovenia': '🇸🇮', 'Solomon Islands': '🇸🇧', 'Somalia': '🇸🇴',
-            'South Africa': '🇿🇦', 'South Korea': '🇰🇷', 'South Sudan': '🇸🇸', 'Spain': '🇪🇸', 'Sri Lanka': '🇱🇰',
-            'Sudan': '🇸🇩', 'Suriname': '🇸🇷', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭', 'Syria': '🇸🇾',
-            'Tajikistan': '🇹🇯', 'Tanzania': '🇹🇿', 'Thailand': '🇹🇭', 'Togo': '🇹🇬', 'Tonga': '🇹🇴',
-            'Trinidad and Tobago': '🇹🇹', 'Tunisia': '🇹🇳', 'Turkey': '🇹🇷', 'Turkmenistan': '🇹🇲', 'Tuvalu': '🇹🇻',
-            'Uganda': '🇺🇬', 'Ukraine': '🇺🇦', 'United Arab Emirates': '🇦🇪', 'United Kingdom': '🇬🇧', 'United States': '🇺🇸',
-            'Uruguay': '🇺🇾', 'Uzbekistan': '🇺🇿', 'Vanuatu': '🇻🇺', 'Vatican City': '🇻🇦', 'Venezuela': '🇻🇪',
-            'Vietnam': '🇻🇳', 'Yemen': '🇾🇪', 'Zambia': '🇿🇲', 'Zimbabwe': '🇿🇼'
-        };
-
-        return countryFlags[countryName] || '';
-    }
-
-    createBasicFrame() {
-        console.log('Creating basic frame fallback');
-        // Créer un cadre de base si l'image ne se charge pas
-        this.canvas.width = 800;
-        this.canvas.height = 600;
-        this.isFrameLoaded = true;
-
-        // Dessiner un cadre simple
-        this.ctx.fillStyle = '#f8f9fa';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.strokeStyle = '#dee2e6';
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeRect(90, 215, 320, 320);
-
-        // Ajouter du texte pour identifier le cadre de base
-        this.ctx.fillStyle = '#6c757d';
-        this.ctx.font = '16px Inter, Arial, sans-serif';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('TICAD9 Youth Initiatives', this.canvas.width / 2, 50);
-
-        this.resizeCanvas();
-        this.drawCanvas();
-    }
-
-    setupEventListeners() {
-        this.uploadBtn.addEventListener('click', () => this.fileInput.click());
-        this.previewOverlay.addEventListener('click', () => this.fileInput.click());
-        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
-        this.downloadBtn.addEventListener('click', () => this.downloadImage());
-        this.shareBtn.addEventListener('click', () => this.shareImage());
-
-        // Redessiner le canvas quand le texte change
-        [this.firstNameInput, this.lastNameInput, document.getElementById('country')].forEach(input => {
-            const eventType = input.tagName.toLowerCase() === 'select' ? 'change' : 'input';
-            input.addEventListener(eventType, () => {
-                console.log('Text input changed, redrawing canvas');
-                this.drawCanvas();
-            });
-        });
-    }
-
-    setupMobileHelp() {
-        const helpToggle = document.getElementById('helpToggle');
-        const instructionsContent = document.getElementById('instructionsContent');
-
-        if (helpToggle && instructionsContent) {
-            helpToggle.addEventListener('click', () => {
-                instructionsContent.classList.toggle('show');
-                helpToggle.classList.toggle('active');
-            });
-        }
-    }
-
-    setupDragAndDrop() {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            this.canvasContainer.addEventListener(eventName, this.preventDefaults, false);
         });
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            this.canvasContainer.addEventListener(eventName, () => {
-                this.canvasContainer.classList.add('drag-over');
-            }, false);
+        this.canvas.addEventListener('pointermove', function (e) {
+            if (!self.userImage || !pointers[e.pointerId]) return;
+            pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+            var count = Object.keys(pointers).length;
+
+            if (count >= 2 && pinchStart) {
+                var ratio = distance(pointers) / (pinchStart.dist || 1);
+                self.zoom = Math.min(3, Math.max(1, pinchStart.zoom * ratio));
+                self.zoomInput.value = String(self.zoom);
+            } else if (count === 1 && last) {
+                var k = scaleFactor();
+                self.offsetX += (e.clientX - last.x) * k;
+                self.offsetY += (e.clientY - last.y) * k;
+                last = { x: e.clientX, y: e.clientY };
+            }
+            self.clampOffsets();
+            self.draw();
         });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            this.canvasContainer.addEventListener(eventName, () => {
-                this.canvasContainer.classList.remove('drag-over');
-            }, false);
-        });
-
-        this.canvasContainer.addEventListener('drop', (e) => this.handleDrop(e), false);
-    }
-
-    preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-
-        if (files.length > 0) {
-            console.log('File dropped:', files[0].name);
-            this.handleFile(files[0]);
+        function release(e) {
+            delete pointers[e.pointerId];
+            if (Object.keys(pointers).length < 2) pinchStart = null;
+            if (Object.keys(pointers).length === 0) last = null;
         }
-    }
+        this.canvas.addEventListener('pointerup', release);
+        this.canvas.addEventListener('pointercancel', release);
+    };
 
-    handleFileSelect(e) {
-        const file = e.target.files[0];
-        if (file) {
-            console.log('File selected:', file.name);
-            this.handleFile(file);
-        }
-    }
+    /* ---------- file handling ---------- */
 
-    handleFile(file) {
-        console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+    PhotoFrameApp.prototype.handleFile = function (file) {
+        var self = this;
 
-        if (!file.type.startsWith('image/')) {
-            console.error('Invalid file type:', file.type);
-            alert('Please select a valid image file.');
+        if (!file.type || file.type.indexOf('image/') !== 0) {
+            this.showToast('Please choose an image file.');
             return;
         }
 
-        // Afficher un indicateur de chargement
-        this.uploadArea.innerHTML = '<div class="upload-icon">⏳</div><p>Loading image...</p>';
+        var reader = new FileReader();
 
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            console.log('FileReader completed, creating new Image object');
-
-            this.userImage = new Image();
-            this.userImage.crossOrigin = 'anonymous';
-
-            this.userImage.onload = () => {
-                console.log('User image loaded successfully');
-                console.log('User image dimensions:', this.userImage.naturalWidth, 'x', this.userImage.naturalHeight);
-
-                // Double vérification que l'image est complètement chargée
-                if (this.userImage.complete && this.userImage.naturalWidth > 0 && this.userImage.naturalHeight > 0) {
-                    console.log('Image validation passed, updating UI');
-                    this.previewOverlay.classList.add('hidden');
-                    this.downloadBtn.disabled = false;
-                    this.shareBtn.disabled = false;
-
-                    // Redessiner le canvas
-                    this.drawCanvas();
-                } else {
-                    console.error('Image validation failed');
-                    console.log('Complete:', this.userImage.complete);
-                    console.log('Natural width:', this.userImage.naturalWidth);
-                    console.log('Natural height:', this.userImage.naturalHeight);
-                    alert('Failed to load the image properly. Please try another file.');
-                    this.resetUploadArea();
+        reader.onload = function (e) {
+            var img = new Image();
+            img.onload = function () {
+                if (!img.naturalWidth || !img.naturalHeight) {
+                    self.showToast('That image could not be read. Try another one.');
+                    return;
                 }
-            };
+                self.userImage = img;
+                self.zoom = 1;
+                self.offsetX = 0;
+                self.offsetY = 0;
+                self.zoomInput.value = '1';
 
-            this.userImage.onerror = (error) => {
-                console.error('Failed to load user image:', error);
-                alert('Failed to load the image. Please try another file.');
-                this.resetUploadArea();
+                self.dropHint.classList.add('hidden');
+                self.zoomRow.hidden = false;
+                self.dragTip.hidden = false;
+                self.downloadBtn.disabled = false;
+                self.shareBtn.disabled = false;
+                self.draw();
             };
-
-            // Démarrer le chargement de l'image
-            this.userImage.src = e.target.result;
+            img.onerror = function () {
+                self.showToast('That image could not be read. Try another one.');
+            };
+            img.src = e.target.result;
         };
 
-        reader.onerror = (error) => {
-            console.error('FileReader error:', error);
-            alert('Failed to read the file. Please try again.');
-            this.resetUploadArea();
-        };
-
+        reader.onerror = function () { self.showToast('Could not read the file.'); };
         reader.readAsDataURL(file);
-    }
+    };
 
-    resetUploadArea() {
-        this.uploadArea.innerHTML = `
-            <div class="upload-icon">📷</div>
-            <p>Click to add your photo</p>
-            <p class="upload-hint">or drag and drop your image here</p>
-        `;
-        this.previewOverlay.classList.remove('hidden');
-        this.downloadBtn.disabled = true;
-        this.shareBtn.disabled = true;
-    }
+    /* ---------- drawing ---------- */
 
-    drawCanvas() {
-        console.log('=== DRAW CANVAS START ===');
-        console.log('Frame loaded:', this.isFrameLoaded);
-        console.log('User image exists:', !!this.userImage);
-        console.log('User image complete:', this.userImage?.complete);
-        console.log('Canvas dimensions:', this.canvas.width, 'x', this.canvas.height);
-
-        if (!this.isFrameLoaded) {
-            console.log('Frame not loaded, returning');
-            return;
-        }
-
-        // Effacer complètement le canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Dessiner le fond/cadre
-        this.drawFrame();
-
-        // Dessiner l'image utilisateur si elle existe
-        if (this.userImage) {
-            this.drawUserImage();
-        }
-
-        // Ajouter le texte par-dessus
-        this.drawText();
-
-        console.log('=== DRAW CANVAS END ===');
-    }
-
-    drawFrame() {
-        if (this.frameImage.complete && this.frameImage.naturalWidth > 0) {
-            console.log('Drawing frame image');
-            this.ctx.drawImage(this.frameImage, 0, 0);
-        } else {
-            console.log('Drawing basic frame background');
-            // Fond de base si le frame n'est pas chargé
-            this.ctx.fillStyle = '#f8f9fa';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-            // Zone photo
-            this.ctx.strokeStyle = '#dee2e6';
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(90, 215, 320, 320);
-        }
-    }
-
-    drawUserImage() {
-        console.log('=== DRAWING USER IMAGE ===');
-
-        // Vérifications strictes
-        if (!this.userImage) {
-            console.log('No user image to draw');
-            return;
-        }
-
-        if (!this.userImage.complete) {
-            console.log('User image not complete');
-            return;
-        }
-
-        if (this.userImage.naturalWidth === 0 || this.userImage.naturalHeight === 0) {
-            console.log('User image has invalid dimensions');
-            return;
-        }
-
-        console.log('User image validation passed, proceeding to draw');
-        console.log('Image natural dimensions:', this.userImage.naturalWidth, 'x', this.userImage.naturalHeight);
-
-        // Coordonnées et dimensions de la zone photo dans le cadre TICAD9
-        const photoArea = {
-            x: 90,
-            y: 215,
-            width: 320,
-            height: 320
-        };
-
-        console.log('Photo area:', photoArea);
-
-        // Calculer les dimensions pour maintenir le ratio et remplir la zone
-        const imgRatio = this.userImage.naturalWidth / this.userImage.naturalHeight;
-        const areaRatio = photoArea.width / photoArea.height;
-
-        console.log('Image ratio:', imgRatio, 'Area ratio:', areaRatio);
-
-        let drawWidth, drawHeight, drawX, drawY;
+    PhotoFrameApp.prototype.photoLayout = function () {
+        var p = FRAME.photo;
+        var img = this.userImage;
+        var imgRatio = img.naturalWidth / img.naturalHeight;
+        var areaRatio = p.w / p.h;
+        var w, h;
 
         if (imgRatio > areaRatio) {
-            // L'image est plus large que la zone - ajuster par la hauteur
-            drawHeight = photoArea.height;
-            drawWidth = drawHeight * imgRatio;
-            drawX = photoArea.x - (drawWidth - photoArea.width) / 2;
-            drawY = photoArea.y;
+            h = p.h;
+            w = h * imgRatio;
         } else {
-            // L'image est plus haute que la zone - ajuster par la largeur
-            drawWidth = photoArea.width;
-            drawHeight = drawWidth / imgRatio;
-            drawX = photoArea.x;
-            drawY = photoArea.y - (drawHeight - photoArea.height) / 2;
+            w = p.w;
+            h = w / imgRatio;
         }
+        w *= this.zoom;
+        h *= this.zoom;
 
-        console.log('Calculated draw dimensions:', {
-            x: drawX,
-            y: drawY,
-            width: drawWidth,
-            height: drawHeight
-        });
-
-        // Sauvegarder le contexte pour le clipping
-        this.ctx.save();
-
-        try {
-            // Créer un chemin de clipping pour la zone photo
-            this.ctx.beginPath();
-            this.ctx.rect(photoArea.x, photoArea.y, photoArea.width, photoArea.height);
-            this.ctx.clip();
-
-            // Dessiner l'image utilisateur
-            this.ctx.drawImage(
-                this.userImage,
-                drawX,
-                drawY,
-                drawWidth,
-                drawHeight
-            );
-
-            console.log('User image drawn successfully');
-
-        } catch (error) {
-            console.error('Error drawing user image:', error);
-        } finally {
-            // Restaurer le contexte
-            this.ctx.restore();
-        }
-    }
-
-    drawText() {
-        console.log('=== DRAWING TEXT ===');
-
-        const firstName = this.firstNameInput.value.trim();
-        const lastName = this.lastNameInput.value.trim();
-        const countrySelect = document.getElementById('country');
-        const country = countrySelect.options[countrySelect.selectedIndex].text;
-        const countryCode = countrySelect.value;
-
-        console.log('Text values:', { firstName, lastName, country, countryCode });
-
-        this.ctx.textAlign = 'left';
-        this.ctx.textBaseline = 'top';
-
-        const textArea = {
-            x: 105,
-            y: 555,
-            width: 290,
-            lineHeight: 25
+        return {
+            w: w,
+            h: h,
+            x: p.x + (p.w - w) / 2 + this.offsetX,
+            y: p.y + (p.h - h) / 2 + this.offsetY
         };
+    };
 
-        // Nom complet en ORANGE
-        if (firstName || lastName) {
-            this.ctx.fillStyle = '#be8e25'; // Orange vif
-            this.ctx.font = 'bold 20px Inter, Arial, sans-serif';
-            const fullName = `${firstName} ${lastName}`.trim().toUpperCase();
-            this.ctx.fillText(fullName, textArea.x, textArea.y);
-        }
+    PhotoFrameApp.prototype.clampOffsets = function () {
+        if (!this.userImage) return;
+        var p = FRAME.photo;
+        // photoLayout() sizes do not depend on the offsets, so this is safe.
+        var box = this.photoLayout();
+        var slackX = Math.max(0, (box.w - p.w) / 2);
+        var slackY = Math.max(0, (box.h - p.h) / 2);
+        this.offsetX = Math.min(slackX, Math.max(-slackX, this.offsetX));
+        this.offsetY = Math.min(slackY, Math.max(-slackY, this.offsetY));
+    };
 
-        // Pays avec drapeau et code en NOIR
-        if (country && country !== 'Select your country') {
-            console.log('Drawing country:', country, 'with code:', countryCode);
-            const countryY = textArea.y + (firstName || lastName ? textArea.lineHeight : 0);
-            const flagEmoji = this.getCountryFlag(country);
+    PhotoFrameApp.prototype.roundedRect = function (ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    };
 
-            this.ctx.fillStyle = '#000000';
-            this.ctx.font = '18px Inter, Arial, sans-serif';
+    PhotoFrameApp.prototype.draw = function () {
+        if (!this.frameReady) return;
 
-            if (flagEmoji) {
-                // Afficher le drapeau, le nom du pays et le code
-                this.ctx.font = '20px Inter, Arial, sans-serif'; // Taille pour l'emoji
-                this.ctx.fillText(flagEmoji, textArea.x, countryY);
-                this.ctx.font = '18px Inter, Arial, sans-serif'; // Taille pour le texte
-                this.ctx.fillText(` ${country.toUpperCase()}`, textArea.x + 25, countryY);
-            } else {
-                // Afficher le nom du pays et le code si pas de drapeau
-                // this.ctx.fillText(`${country.toUpperCase()} (${countryCode})`, textArea.x, countryY);
-                this.ctx.fillText(`${country.toUpperCase()}`, textArea.x, countryY);
-            }
+        var ctx = this.ctx;
+        var p = FRAME.photo;
+
+        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        if (this.frameImage.complete && this.frameImage.naturalWidth) {
+            ctx.drawImage(this.frameImage, 0, 0);
         } else {
-            console.log('No country selected or invalid country');
+            ctx.fillStyle = '#4e6338';
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(p.x, p.y, p.w, p.h);
         }
 
-        console.log('=== TEXT DRAWING COMPLETE ===');
-    }
+        if (this.userImage) {
+            var box = this.photoLayout();
+            ctx.save();
+            this.roundedRect(ctx, p.x, p.y, p.w, p.h, p.r);
+            ctx.clip();
+            ctx.drawImage(this.userImage, box.x, box.y, box.w, box.h);
+            ctx.restore();
+        }
 
+        this.drawText();
+    };
 
-    downloadImage() {
-        console.log('Downloading image');
+    PhotoFrameApp.prototype.fitFont = function (text, spec, weight, style) {
+        var ctx = this.ctx;
+        var size = spec.size;
+        var family = "'Montserrat', system-ui, Arial, sans-serif";
+        while (size > 26) {
+            ctx.font = style + ' ' + weight + ' ' + size + "px " + family;
+            if (ctx.measureText(text).width <= spec.maxWidth) break;
+            size -= 1;
+        }
+        return size;
+    };
+
+    PhotoFrameApp.prototype.drawText = function () {
+        var ctx = this.ctx;
+        var name = (this.nameInput.value || '').trim().toUpperCase();
+        var country = this.countrySelect.value
+            ? this.countrySelect.options[this.countrySelect.selectedIndex].textContent.toUpperCase()
+            : '';
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = FRAME.orange;
+
+        if (name) {
+            this.fitFont(name, FRAME.name, 800, 'normal');
+            ctx.fillText(name, FRAME.name.x, FRAME.name.baseline);
+        }
+
+        if (country) {
+            this.fitFont(country, FRAME.country, 300, 'italic');
+            ctx.fillText(country, FRAME.country.x, FRAME.country.baseline);
+        }
+    };
+
+    /* ---------- output ---------- */
+
+    PhotoFrameApp.prototype.fileName = function () {
+        var name = (this.nameInput.value || 'participant').trim().toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'participant';
+        return 'ticad-youth-drive-2026-' + name + '.png';
+    };
+
+    PhotoFrameApp.prototype.download = function () {
         try {
-            const link = document.createElement('a');
-            link.download = `TICAD9-Youth-${Date.now()}.png`;
+            var link = document.createElement('a');
+            link.download = this.fileName();
             link.href = this.canvas.toDataURL('image/png', 1.0);
+            document.body.appendChild(link);
             link.click();
-            console.log('Download initiated');
-        } catch (error) {
-            console.error('Download failed:', error);
-            alert('Failed to download image. Please try again.');
+            document.body.removeChild(link);
+            this.showToast('Image downloaded.');
+        } catch (err) {
+            this.showToast('Download failed. Try again.');
         }
-    }
+    };
 
-    shareImage() {
-        console.log('Sharing image');
+    PhotoFrameApp.prototype.share = function () {
+        var self = this;
 
-        if (navigator.share && navigator.canShare) {
-            // API Web Share native (mobile)
-            this.canvas.toBlob((blob) => {
-                const file = new File([blob], 'ticad9-youth-photo.png', { type: 'image/png' });
-
-                if (navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        title: 'TICAD9 Youth Initiatives',
-                        text: 'I am attending TICAD9 Youth Initiatives! #YOUTHTICAD2025 #TICAD9 #AFRICAJAPAN #COCREATION #THEFUTUREWEWANT',
-                        files: [file]
-                    }).then(() => {
-                        console.log('Share successful');
-                    }).catch((error) => {
-                        console.error('Share failed:', error);
-                        this.fallbackShare();
-                    });
-                } else {
-                    console.log('File sharing not supported, trying text share');
-                    navigator.share({
-                        title: 'TICAD9 Youth Initiatives',
-                        text: 'I am attending TICAD9 Youth Initiatives! #YOUTHTICAD2025 #TICAD9 #AFRICAJAPAN #COCREATION #THEFUTUREWEWANT',
-                        url: window.location.href
-                    }).catch(() => this.fallbackShare());
-                }
-            }, 'image/png', 1.0);
-        } else {
-            this.fallbackShare();
+        if (!this.canvas.toBlob) {
+            this.download();
+            return;
         }
-    }
 
-    fallbackShare() {
-        console.log('Using fallback share method');
+        this.canvas.toBlob(function (blob) {
+            if (!blob) { self.download(); return; }
+            var file = new File([blob], self.fileName(), { type: 'image/png' });
 
-        // Fallback : copier l'image dans le presse-papiers
-        if (navigator.clipboard && navigator.clipboard.write) {
-            this.canvas.toBlob((blob) => {
-                const item = new ClipboardItem({ 'image/png': blob });
-                navigator.clipboard.write([item]).then(() => {
-                    console.log('Image copied to clipboard');
-                    alert('Image copied to clipboard! You can now paste it on social media.');
-                }).catch((error) => {
-                    console.error('Clipboard write failed:', error);
-                    // Fallback ultime : télécharger l'image
-                    this.downloadImage();
-                    alert('Image downloaded! You can now share it on social media.');
-                });
-            }, 'image/png', 1.0);
-        } else {
-            // Fallback ultime : télécharger l'image
-            this.downloadImage();
-            alert('Image downloaded! You can now share it on social media.');
-        }
-    }
-
-    // Méthode pour redimensionner le canvas de manière responsive
-    resizeCanvas() {
-        if (!this.isFrameLoaded) return;
-
-        const container = this.canvas.parentElement;
-        const containerWidth = container.clientWidth - 6; // Soustraire les bordures
-        const originalWidth = this.frameImage.naturalWidth || this.canvas.width;
-        const originalHeight = this.frameImage.naturalHeight || this.canvas.height;
-        const scale = containerWidth / originalWidth;
-
-        console.log('Resizing canvas - Container width:', containerWidth, 'Scale:', scale);
-
-        if (scale < 1) {
-            this.canvas.style.width = containerWidth + 'px';
-            this.canvas.style.height = (originalHeight * scale) + 'px';
-        } else {
-            this.canvas.style.width = originalWidth + 'px';
-            this.canvas.style.height = originalHeight + 'px';
-        }
-    }
-}
-
-// Initialiser l'application quand le DOM est chargé
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded, initializing PhotoCallApp');
-
-    const app = new PhotoCallApp();
-
-    // Redimensionner le canvas lors du redimensionnement de la fenêtre
-    window.addEventListener('resize', () => {
-        console.log('Window resized');
-        if (app.isFrameLoaded) {
-            app.resizeCanvas();
-        }
-    });
-
-    // Redimensionner le canvas une fois le cadre chargé
-    app.frameImage.addEventListener('load', () => {
-        console.log('Frame loaded, resizing canvas');
-        app.resizeCanvas();
-    });
-});
-
-// Ajouter des animations de chargement pour les boutons
-document.addEventListener('DOMContentLoaded', () => {
-    const buttons = document.querySelectorAll('.btn');
-    buttons.forEach(btn => {
-        btn.addEventListener('click', function () {
-            if (!this.disabled) {
-                this.classList.add('loading');
-                setTimeout(() => {
-                    this.classList.remove('loading');
-                }, 1000);
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    title: 'TICAD Youth Drive 2026',
+                    text: SHARE_TEXT,
+                    files: [file]
+                }).catch(function () { /* user cancelled */ });
+                return;
             }
-        });
+
+            if (navigator.clipboard && window.ClipboardItem) {
+                navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+                    .then(function () { self.showToast('Image copied to clipboard.'); })
+                    .catch(function () { self.download(); });
+                return;
+            }
+
+            self.download();
+        }, 'image/png', 1.0);
+    };
+
+    PhotoFrameApp.prototype.showToast = function (message) {
+        var self = this;
+        this.toast.textContent = message;
+        this.toast.classList.add('show');
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(function () {
+            self.toast.classList.remove('show');
+        }, 2600);
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        window.ticadApp = new PhotoFrameApp();
     });
-});
+})();
